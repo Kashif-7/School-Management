@@ -2,24 +2,38 @@ from flask import Blueprint, request, jsonify
 from app.blc.courseBLC import CourseBLC
 from webargs.flaskparser import use_args
 from webargs import fields
-from app import mongo
-from bson import ObjectId
 
 bp = Blueprint("course", __name__, url_prefix="/courses")
 
 @bp.route("/list", methods=["GET"])
 def get_all_courses():
-    with mongo.db.client.start_session() as session:
-        courses = CourseBLC.get_all_courses(session=session)
-    return jsonify(courses)
+    courses = CourseBLC.get_all_courses()
+    return jsonify([{
+        "id": course.id,
+        "name": course.name,
+        "description": course.description,
+        "credits": course.credits,
+        "max_students": course.max_students,
+        "teacher_id": course.teacher_id,
+        "created_at": course.created_at.isoformat() if course.created_at else None,
+        "updated_at": course.updated_at.isoformat() if course.updated_at else None
+    } for course in courses])
 
 
-@bp.route("/detail/<id>", methods=["GET"])
+@bp.route("/detail/<int:id>", methods=["GET"])
 def get_course(id):
     try:
-        with mongo.db.client.start_session() as session:
-            course = CourseBLC.get_course_by_id(id, session=session)
-        return jsonify(course)
+        course = CourseBLC.get_course_by_id(id)
+        return jsonify({
+            "id": course.id,
+            "name": course.name,
+            "description": course.description,
+            "credits": course.credits,
+            "max_students": course.max_students,
+            "teacher_id": course.teacher_id,
+            "created_at": course.created_at.isoformat() if course.created_at else None,
+            "updated_at": course.updated_at.isoformat() if course.updated_at else None
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 404
 
@@ -29,45 +43,42 @@ def get_course(id):
         "name": fields.String(required=True),
         "description": fields.String(required=True),
         "credits": fields.Integer(required=True),
-        "teacher_id": fields.String(required=True),
+        "teacher_id": fields.Integer(required=True),
         "max_students": fields.Integer(required=False)
     },
     location="json",
 )
 def create_course(args: dict):
     try:
-        with mongo.db.client.start_session() as session:
-            course = CourseBLC.create_course(args=args, session=session)
+        course = CourseBLC.create_course(args=args)
         return jsonify(course), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
 
-@bp.route("/update/<id>", methods=["PUT"])
+@bp.route("/update/<int:id>", methods=["PUT"])
 @use_args(
     {
         "name": fields.String(),
         "description": fields.String(),
         "credits": fields.Integer(),
-        "teacher_id": fields.String(),
+        "teacher_id": fields.Integer(),
         "max_students": fields.Integer()
     },
     location="json",
 )
 def update_course(args: dict, id):
     try:
-        with mongo.db.client.start_session() as session:
-            course = CourseBLC.update_course(id, args=args, session=session)
+        course = CourseBLC.update_course(id, args=args)
         return jsonify(course)
     except Exception as e:
         return jsonify({"error": str(e)}), 404
 
 
-@bp.route("/delete/<id>", methods=["DELETE"])
+@bp.route("/delete/<int:id>", methods=["DELETE"])
 def delete_course(id):
     try:
-        with mongo.db.client.start_session() as session:
-            result = CourseBLC.delete_course(id, session=session)
+        result = CourseBLC.delete_course(id)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 404

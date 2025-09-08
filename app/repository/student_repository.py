@@ -1,79 +1,95 @@
 from datetime import datetime
-from app.extension import mongo
-from pymongo.client_session import ClientSession
-from bson import json_util, ObjectId
+from app.extension import db
+from app.model.models import Student, Enrollment
 from flask import abort
-import json
+from sqlalchemy.exc import SQLAlchemyError
 
 class StudentRepository:
     @staticmethod
-    def get_all_students(session: ClientSession):
+    def get_all_students():
+        """Get all students from the database."""
         try:
-            students = list(mongo.db.students.find({}, session=session))
+            students = Student.query.all()
             return students
-        except Exception as e:
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
     
     @staticmethod
-    def get_student_by_id(student_id: str, session: ClientSession):
+    def get_student_by_id(student_id: int):
+        """Get a student by ID."""
         try:
-            student = mongo.db.students.find_one({"_id": ObjectId(student_id)}, session=session)
+            student = Student.query.get(student_id)
             if not student:
                 abort(404, "Student not found")
             return student
-        except Exception as e:
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
     
     @staticmethod
-    def create_student(args: dict, session: ClientSession):
+    def create_student(args: dict):
+        """Create a new student."""
         try:
-            # Add created_at timestamp
-            args["created_at"] = datetime.now()
-            
-            # Convert the entire document using json_util to handle all date-related fields
-            student_doc = json.loads(json_util.dumps(args))
-            
-            # Now insert the document with properly serialized dates
-            result = mongo.db.students.insert_one(student_doc, session=session)
-            return str(result.inserted_id)
-        except Exception as e:
-            raise e
-    
-    @staticmethod
-    def update_student(student_id: str, args: dict, session: ClientSession):
-        try:
-            # Add updated_at timestamp
-            args["updated_at"] = datetime.now()
-            
-            # Convert the entire document using json_util to handle all date-related fields
-            update_doc = json.loads(json_util.dumps(args))
-            
-            result = mongo.db.students.update_one(
-                {"_id": ObjectId(student_id)},
-                {"$set": update_doc},
-                session=session
+            student = Student(
+                first_name=args.get("first_name"),
+                last_name=args.get("last_name"),
+                email=args.get("email"),
+                date_of_birth=args.get("date_of_birth"),
+                grade=args.get("grade"),
+                address=args.get("address"),
+                phone=args.get("phone")
             )
             
-            if result.matched_count == 0:
-                abort(404, "Student not found")
-                
-            return {"matched_count": result.matched_count, "modified_count": result.modified_count}
-        except Exception as e:
+            db.session.add(student)
+            db.session.commit()
+            return student.id
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
     
     @staticmethod
-    def delete_student(student_id: str, session: ClientSession):
+    def update_student(student_id: int, args: dict):
+        """Update a student."""
         try:
-            # First check if student exists
-            student = mongo.db.students.find_one({"_id": ObjectId(student_id)}, session=session)
+            student = Student.query.get(student_id)
             if not student:
                 abort(404, "Student not found")
             
-            # Then delete the student
-            result = mongo.db.students.delete_one({"_id": ObjectId(student_id)}, session=session)
+            # Update student attributes
+            if "first_name" in args:
+                student.first_name = args["first_name"]
+            if "last_name" in args:
+                student.last_name = args["last_name"]
+            if "email" in args:
+                student.email = args["email"]
+            if "date_of_birth" in args:
+                student.date_of_birth = args["date_of_birth"]
+            if "grade" in args:
+                student.grade = args["grade"]
+            if "address" in args:
+                student.address = args["address"]
+            if "phone" in args:
+                student.phone = args["phone"]
             
-            # Delete related enrollments
-            mongo.db.enrollments.delete_many({"student_id": student_id}, session=session)
+            db.session.commit()
+            return {"student_id": student_id, "modified": True}
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise e
+    
+    @staticmethod
+    def delete_student(student_id: int):
+        """Delete a student and their enrollments."""
+        try:
+            student = Student.query.get(student_id)
+            if not student:
+                abort(404, "Student not found")
+            
+            # No need to delete enrollments separately - cascade will handle it
+            db.session.delete(student)
+            db.session.commit()
+            return {"deleted": True}
             
             return {"deleted_count": result.deleted_count}
         except Exception as e:

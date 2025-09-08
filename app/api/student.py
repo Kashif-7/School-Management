@@ -1,31 +1,52 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify
 from app.blc.studentBLC import StudentBLC
 from webargs.flaskparser import use_args
 from webargs import fields
-from app import mongo
-from bson import ObjectId, json_util
-import json
+from app.model.models import Student
+from app.extension import db
 
 bp = Blueprint("student", __name__)
 
 
 @bp.route("/students/list", methods=["GET"])
 def get_all_students():
-    with mongo.db.client.start_session() as session:
-        students = StudentBLC.get_all_students(session=session)
-    return Response(json_util.dumps(students), mimetype='application/json')
+    """Get all students."""
+    students = StudentBLC.get_all_students()
+    return jsonify([{
+        "id": student.id,
+        "first_name": student.first_name,
+        "last_name": student.last_name,
+        "email": student.email,
+        "date_of_birth": student.date_of_birth.isoformat() if student.date_of_birth else None,
+        "grade": student.grade,
+        "address": student.address,
+        "phone": student.phone,
+        "created_at": student.created_at.isoformat() if student.created_at else None,
+        "updated_at": student.updated_at.isoformat() if student.updated_at else None
+    } for student in students])
 
-# Get student by ID
-@bp.route("/students/detail/<id>", methods=["GET"])
+
+@bp.route("/students/detail/<int:id>", methods=["GET"])
 def get_student(id):
+    """Get a student by ID."""
     try:
-        with mongo.db.client.start_session() as session:
-            student = StudentBLC.get_student_by_id(id, session=session)
-        return Response(json_util.dumps(student), mimetype='application/json')
+        student = StudentBLC.get_student_by_id(id)
+        return jsonify({
+            "id": student.id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "email": student.email,
+            "date_of_birth": student.date_of_birth.isoformat() if student.date_of_birth else None,
+            "grade": student.grade,
+            "address": student.address,
+            "phone": student.phone,
+            "created_at": student.created_at.isoformat() if student.created_at else None,
+            "updated_at": student.updated_at.isoformat() if student.updated_at else None
+        })
     except Exception as e:
-        return Response(json_util.dumps({"error": str(e)}), mimetype='application/json', status=404)
+        return jsonify({"error": str(e)}), 404
 
-# Create a new student
+
 @bp.route("/students/create", methods=["POST"])
 @use_args(
     {
@@ -40,19 +61,15 @@ def get_student(id):
     location="json",
 )
 def create_student(args: dict):
+    """Create a new student."""
     try:
-        # Convert date_of_birth to string before passing to BLC
-        if "date_of_birth" in args and hasattr(args["date_of_birth"], "isoformat"):
-            args["date_of_birth"] = args["date_of_birth"].isoformat()
-            
-        with mongo.db.client.start_session() as session:
-            student = StudentBLC.create_student(args=args, session=session)
-        return Response(json_util.dumps(student), mimetype='application/json', status=201)
+        student = StudentBLC.create_student(args=args)
+        return jsonify(student), 201
     except Exception as e:
-        return Response(json_util.dumps({"error": str(e)}), mimetype='application/json', status=400)
+        return jsonify({"error": str(e)}), 400
 
-# Update student
-@bp.route("/students/update/<id>", methods=["PUT"])
+
+@bp.route("/students/update/<int:id>", methods=["PUT"])
 @use_args(
     {
         "first_name": fields.String(),
@@ -66,23 +83,19 @@ def create_student(args: dict):
     location="json",
 )
 def update_student(args: dict, id):
+    """Update a student's information."""
     try:
-        # Convert date_of_birth to string before passing to BLC
-        if "date_of_birth" in args and hasattr(args["date_of_birth"], "isoformat"):
-            args["date_of_birth"] = args["date_of_birth"].isoformat()
-            
-        with mongo.db.client.start_session() as session:
-            student = StudentBLC.update_student(id, args=args, session=session)
-        return Response(json_util.dumps(student), mimetype='application/json')
+        result = StudentBLC.update_student(id, args=args)
+        return jsonify(result)
     except Exception as e:
-        return Response(json_util.dumps({"error": str(e)}), mimetype='application/json', status=404)
+        return jsonify({"error": str(e)}), 404
 
-# Delete student
-@bp.route("/students/delete/<id>", methods=["DELETE"])
+
+@bp.route("/students/delete/<int:id>", methods=["DELETE"])
 def delete_student(id):
+    """Delete a student and their enrollments."""
     try:
-        with mongo.db.client.start_session() as session:
-            result = StudentBLC.delete_student(id, session=session)
-        return Response(json_util.dumps(result), mimetype='application/json')
+        result = StudentBLC.delete_student(id)
+        return jsonify(result)
     except Exception as e:
-        return Response(json_util.dumps({"error": str(e)}), mimetype='application/json', status=404)
+        return jsonify({"error": str(e)}), 404

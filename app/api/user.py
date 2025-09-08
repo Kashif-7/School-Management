@@ -3,7 +3,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.blc.userBLC import UserBLC
 from webargs.flaskparser import use_args
 from webargs import fields
-from app import mongo
 import jwt
 import datetime
 import os
@@ -13,12 +12,11 @@ bp = Blueprint("user", __name__)
 
 @bp.route("/signup", methods=["POST"])
 @use_args(
-    {"email": fields.String(), "password": fields.String()},
+    {"username": fields.String(required=False), "email": fields.String(), "password": fields.String()},
     location="json",
 )
 def user_signup(args: dict):
-    with mongo.db.client.start_session() as session:
-        user = UserBLC.user_signup(args=args, session=session)
+    user = UserBLC.user_signup(args=args)
     return jsonify(user)
 
 @bp.route("/login", methods=["POST"])
@@ -28,14 +26,14 @@ def user_signup(args: dict):
 )
 def user_login(args: dict):
     try:
-        with mongo.db.client.start_session() as session:
-            user = UserBLC.user_login(args=args, session=session)
+        user = UserBLC.user_login(args=args)
         
         if user:
             secret_key = os.getenv('JWT_SECRET_KEY', 'fallback-secret-key')
             token = jwt.encode(
                 {
                     "email": user.get("email"),
+                    "user_id": user.get("user_id"),
                     "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
                 },
                 secret_key,
@@ -45,11 +43,12 @@ def user_login(args: dict):
                 "message": "Login successful",
                 "access_token": token,
                 "user": {
-                    "id": str(user["_id"]),
-                    "email": user["email"]
+                    "id": user["user_id"],
+                    "email": user["email"],
+                    "username": user.get("username", "")
                 }
             })
     except Exception as e:
         return jsonify({"error": str(e)}), 401
-    else:
-        return jsonify({"error": "Invalid credentials"}), 401
+    
+    return jsonify({"error": "Invalid credentials"}), 401

@@ -1,31 +1,44 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify
 from app.blc.teacherBLC import TeacherBLC
 from webargs.flaskparser import use_args
 from webargs import fields
-from app import mongo
-from bson import ObjectId, json_util
-import json
 
 bp = Blueprint("teacher", __name__, url_prefix="/teachers")
 
-# Get all teachers
 @bp.route("/list", methods=["GET"])
 def get_all_teachers():
-    with mongo.db.client.start_session() as session:
-        teachers = TeacherBLC.get_all_teachers(session=session)
-    return Response(json_util.dumps(teachers), mimetype='application/json')
+    teachers = TeacherBLC.get_all_teachers()
+    return jsonify([{
+        "id": teacher.id,
+        "first_name": teacher.first_name,
+        "last_name": teacher.last_name,
+        "email": teacher.email,
+        "subject": teacher.subject,
+        "qualification": teacher.qualification,
+        "phone": teacher.phone,
+        "created_at": teacher.created_at.isoformat() if teacher.created_at else None,
+        "updated_at": teacher.updated_at.isoformat() if teacher.updated_at else None
+    } for teacher in teachers])
 
-# Get teacher by ID
-@bp.route("/detail/<id>", methods=["GET"])
+
+@bp.route("/detail/<int:id>", methods=["GET"])
 def get_teacher(id):
     try:
-        with mongo.db.client.start_session() as session:
-            teacher = TeacherBLC.get_teacher_by_id(id, session=session)
-        return Response(json_util.dumps(teacher), mimetype='application/json')
+        teacher = TeacherBLC.get_teacher_by_id(id)
+        return jsonify({
+            "id": teacher.id,
+            "first_name": teacher.first_name,
+            "last_name": teacher.last_name,
+            "email": teacher.email,
+            "subject": teacher.subject,
+            "qualification": teacher.qualification,
+            "phone": teacher.phone,
+            "created_at": teacher.created_at.isoformat() if teacher.created_at else None,
+            "updated_at": teacher.updated_at.isoformat() if teacher.updated_at else None
+        })
     except Exception as e:
-        return Response(json_util.dumps({"error": str(e)}), mimetype='application/json', status=404)
+        return jsonify({"error": str(e)}), 404
 
-# Create a new teacher
 @bp.route("/create", methods=["POST"])
 @use_args(
     {
@@ -40,14 +53,13 @@ def get_teacher(id):
 )
 def create_teacher(args: dict):
     try:
-        with mongo.db.client.start_session() as session:
-            teacher = TeacherBLC.create_teacher(args=args, session=session)
-        return Response(json_util.dumps(teacher), mimetype='application/json', status=201)
+        teacher = TeacherBLC.create_teacher(args=args)
+        return jsonify(teacher), 201
     except Exception as e:
-        return Response(json_util.dumps({"error": str(e)}), mimetype='application/json', status=400)
+        return jsonify({"error": str(e)}), 400
 
 
-@bp.route("/update/<id>", methods=["PUT"])
+@bp.route("/update/<int:id>", methods=["PUT"])
 @use_args(
     {
         "first_name": fields.String(),
@@ -61,18 +73,16 @@ def create_teacher(args: dict):
 )
 def update_teacher(args: dict, id):
     try:
-        with mongo.db.client.start_session() as session:
-            teacher = TeacherBLC.update_teacher(id, args=args, session=session)
-        return Response(json_util.dumps(teacher), mimetype='application/json')
+        teacher = TeacherBLC.update_teacher(id, args=args)
+        return jsonify(teacher)
     except Exception as e:
-        return Response(json_util.dumps({"error": str(e)}), mimetype='application/json', status=404)
+        return jsonify({"error": str(e)}), 404
 
 
-@bp.route("/delete/<id>", methods=["DELETE"])
+@bp.route("/delete/<int:id>", methods=["DELETE"])
 def delete_teacher(id):
     try:
-        with mongo.db.client.start_session() as session:
-            result = TeacherBLC.delete_teacher(id, session=session)
-        return Response(json_util.dumps(result), mimetype='application/json')
+        result = TeacherBLC.delete_teacher(id)
+        return jsonify(result)
     except Exception as e:
-        return Response(json_util.dumps({"error": str(e)}), mimetype='application/json', status=404)
+        return jsonify({"error": str(e)}), 404

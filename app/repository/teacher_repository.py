@@ -1,75 +1,92 @@
 from datetime import datetime
-from app.extension import mongo
-from pymongo.client_session import ClientSession
-from bson import json_util, ObjectId
+from app.extension import db
+from app.model.models import Teacher, Course
 from flask import abort
-import json
+from sqlalchemy.exc import SQLAlchemyError
 
 class TeacherRepository:
     @staticmethod
-    def get_all_teachers(session: ClientSession):
+    def get_all_teachers():
         try:
-            teachers = list(mongo.db.teachers.find({}, session=session))
-            return json.loads(json_util.dumps(teachers))
-        except Exception as e:
+            teachers = Teacher.query.all()
+            return teachers
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
     
     @staticmethod
-    def get_teacher_by_id(teacher_id: str, session: ClientSession):
+    def get_teacher_by_id(teacher_id: int):
         try:
-            teacher = mongo.db.teachers.find_one({"_id": ObjectId(teacher_id)}, session=session)
+            teacher = Teacher.query.get(teacher_id)
             if not teacher:
                 abort(404, "Teacher not found")
-            return json.loads(json_util.dumps(teacher))
-        except Exception as e:
+            return teacher
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
     
     @staticmethod
-    def create_teacher(args: dict, session: ClientSession):
+    def create_teacher(args: dict):
         try:
-            # Add created_at timestamp
-            args["created_at"] = datetime.now()
-            
-            result = mongo.db.teachers.insert_one(args, session=session)
-            return json.loads(json_util.dumps(result.inserted_id))
-        except Exception as e:
-            raise e
-    
-    @staticmethod
-    def update_teacher(teacher_id: str, args: dict, session: ClientSession):
-        try:
-            # Add updated_at timestamp
-            args["updated_at"] = datetime.now()
-            
-            result = mongo.db.teachers.update_one(
-                {"_id": ObjectId(teacher_id)},
-                {"$set": args},
-                session=session
+            teacher = Teacher(
+                first_name=args.get("first_name"),
+                last_name=args.get("last_name"),
+                email=args.get("email"),
+                subject=args.get("subject"),
+                qualification=args.get("qualification"),
+                phone=args.get("phone")
             )
             
-            if result.matched_count == 0:
-                abort(404, "Teacher not found")
-                
-            return {"matched_count": result.matched_count, "modified_count": result.modified_count}
-        except Exception as e:
+            db.session.add(teacher)
+            db.session.commit()
+            return teacher.id
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
     
     @staticmethod
-    def delete_teacher(teacher_id: str, session: ClientSession):
+    def update_teacher(teacher_id: int, args: dict):
         try:
-            # First check if teacher exists
-            teacher = mongo.db.teachers.find_one({"_id": ObjectId(teacher_id)}, session=session)
+            teacher = Teacher.query.get(teacher_id)
+            if not teacher:
+                abort(404, "Teacher not found")
+            
+            # Update teacher attributes
+            if "first_name" in args:
+                teacher.first_name = args["first_name"]
+            if "last_name" in args:
+                teacher.last_name = args["last_name"]
+            if "email" in args:
+                teacher.email = args["email"]
+            if "subject" in args:
+                teacher.subject = args["subject"]
+            if "qualification" in args:
+                teacher.qualification = args["qualification"]
+            if "phone" in args:
+                teacher.phone = args["phone"]
+            
+            db.session.commit()
+            return {"teacher_id": teacher_id, "modified": True}
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise e
+    
+    @staticmethod
+    def delete_teacher(teacher_id: int):
+        try:
+            teacher = Teacher.query.get(teacher_id)
             if not teacher:
                 abort(404, "Teacher not found")
             
             # Check if teacher is assigned to any courses
-            courses = list(mongo.db.courses.find({"teacher_id": teacher_id}, session=session))
+            courses = Course.query.filter_by(teacher_id=teacher_id).all()
             if courses:
                 abort(400, "Cannot delete teacher assigned to courses")
             
-            # Then delete the teacher
-            result = mongo.db.teachers.delete_one({"_id": ObjectId(teacher_id)}, session=session)
-            
-            return {"deleted_count": result.deleted_count}
-        except Exception as e:
+            db.session.delete(teacher)
+            db.session.commit()
+            return {"deleted": True}
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
+    

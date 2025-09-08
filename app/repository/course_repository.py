@@ -1,78 +1,94 @@
 from datetime import datetime
-from app.extension import mongo
-from pymongo.client_session import ClientSession
-from bson import json_util, ObjectId
+from app.extension import db
+from app.model.models import Course, Teacher, Enrollment
 from flask import abort
-import json
+from sqlalchemy.exc import SQLAlchemyError
 
 class CourseRepository:
     @staticmethod
-    def get_all_courses(session: ClientSession):
+    def get_all_courses():
         try:
-            courses = list(mongo.db.courses.find({}, session=session))
-            return json.loads(json_util.dumps(courses))
-        except Exception as e:
+            courses = Course.query.all()
+            return courses
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
     
     @staticmethod
-    def get_course_by_id(course_id: str, session: ClientSession):
+    def get_course_by_id(course_id: int):
         try:
-            course = mongo.db.courses.find_one({"_id": ObjectId(course_id)}, session=session)
+            course = Course.query.get(course_id)
             if not course:
                 abort(404, "Course not found")
-            return json.loads(json_util.dumps(course))
-        except Exception as e:
+            return course
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
     
     @staticmethod
-    def create_course(args: dict, session: ClientSession):
+    def create_course(args: dict):
         try:
-            teacher = mongo.db.teachers.find_one({"_id": ObjectId(args["teacher_id"])}, session=session)
+            # Check if teacher exists
+            teacher = Teacher.query.get(args.get("teacher_id"))
             if not teacher:
                 abort(400, "Teacher not found")
             
-            args["created_at"] = datetime.now()
-            
-            result = mongo.db.courses.insert_one(args, session=session)
-            return json.loads(json_util.dumps(result.inserted_id))
-        except Exception as e:
-            raise e
-    
-    @staticmethod
-    def update_course(course_id: str, args: dict, session: ClientSession):
-        try:
-
-            if "teacher_id" in args:
-                teacher = mongo.db.teachers.find_one({"_id": ObjectId(args["teacher_id"])}, session=session)
-                if not teacher:
-                    abort(400, "Teacher not found")
-        
-            args["updated_at"] = datetime.now()
-            
-            result = mongo.db.courses.update_one(
-                {"_id": ObjectId(course_id)},
-                {"$set": args},
-                session=session
+            course = Course(
+                name=args.get("name"),
+                description=args.get("description"),
+                credits=args.get("credits"),
+                max_students=args.get("max_students", 30),
+                teacher_id=args.get("teacher_id")
             )
             
-            if result.matched_count == 0:
-                abort(404, "Course not found")
-                
-            return {"matched_count": result.matched_count, "modified_count": result.modified_count}
-        except Exception as e:
+            db.session.add(course)
+            db.session.commit()
+            return course.id
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
     
     @staticmethod
-    def delete_course(course_id: str, session: ClientSession):
+    def update_course(course_id: int, args: dict):
         try:
-            course = mongo.db.courses.find_one({"_id": ObjectId(course_id)}, session=session)
+            course = Course.query.get(course_id)
+            if not course:
+                abort(404, "Course not found")
+                
+            # Check if teacher exists if teacher_id is being updated
+            if "teacher_id" in args:
+                teacher = Teacher.query.get(args["teacher_id"])
+                if not teacher:
+                    abort(400, "Teacher not found")
+                course.teacher_id = args["teacher_id"]
+            
+            # Update course attributes
+            if "name" in args:
+                course.name = args["name"]
+            if "description" in args:
+                course.description = args["description"]
+            if "credits" in args:
+                course.credits = args["credits"]
+            if "max_students" in args:
+                course.max_students = args["max_students"]
+            
+            db.session.commit()
+            return {"course_id": course_id, "modified": True}
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise e
+    
+    @staticmethod
+    def delete_course(course_id: int):
+        try:
+            course = Course.query.get(course_id)
             if not course:
                 abort(404, "Course not found")
             
-            result = mongo.db.courses.delete_one({"_id": ObjectId(course_id)}, session=session)
-            
-            mongo.db.enrollments.delete_many({"course_id": course_id}, session=session)
-            
-            return {"deleted_count": result.deleted_count}
-        except Exception as e:
+            # No need to delete enrollments separately - cascade will handle it
+            db.session.delete(course)
+            db.session.commit()
+            return {"deleted": True}
+        except SQLAlchemyError as e:
+            db.session.rollback()
             raise e
