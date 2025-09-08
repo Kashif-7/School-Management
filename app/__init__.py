@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from flask.json.provider import JSONProvider
 from flask_cors import CORS
-from app.extension import db, migrate
+from app.extension import db, build_db_uri
 from app.api.root import bp as root_bp
 from app.api.user import bp as user_bp
 from app.api.student import bp as student_bp
@@ -32,9 +32,20 @@ CORS(app)
 
 app.json = CustomJSONProvider(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost:5432/school_management'
+# Build database credentials from environment variables
+db_credentials = {
+    "DB_USER": os.getenv("DB_USER"),
+    "DB_PW": os.getenv("DB_PW"),
+    "DB_HOST": os.getenv("DB_HOST"),
+    "DB_PORT": int(os.getenv("DB_PORT", 5432)),
+    "DB_NAME": os.getenv("DB_NAME"),
+}
+
+# Configure the SQLAlchemy database URI using credentials
+app.config["SQLALCHEMY_DATABASE_URI"] = build_db_uri(**db_credentials)
 
 db.init_app(app)
+
 
 
 from app.model import models

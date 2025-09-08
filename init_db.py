@@ -1,7 +1,9 @@
-"""
-Initialize the PostgreSQL database for the School Management System.
-This script creates all the necessary tables in the database.
-"""
+
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from app import app, db
 from app.model import models
