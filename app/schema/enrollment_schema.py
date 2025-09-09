@@ -4,7 +4,7 @@ from datetime import datetime
 class EnrollmentCreateSchema(Schema):
     student_id = fields.Str(required=True)
     course_id = fields.Str(required=True)
-    enrollment_date = fields.Str(required=True)  # Changed to Str for simplicity
+    enrollment_date = fields.Str(required=True) 
 
 class EnrollmentUpdateSchema(Schema):
     status = fields.Str(required=True)

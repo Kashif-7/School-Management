@@ -12,9 +12,6 @@ import datetime
 import json
 import os
 from flask_sqlalchemy import SQLAlchemy
-
-
-# Custom JSON provider to handle datetime and date objects
 class CustomJSONProvider(JSONProvider):
     def dumps(self, obj, **kwargs):
         return json.dumps(obj, default=self.default, **kwargs)
@@ -32,7 +29,6 @@ CORS(app)
 
 app.json = CustomJSONProvider(app)
 
-# Build database credentials from environment variables
 db_credentials = {
     "DB_USER": os.getenv("DB_USER"),
     "DB_PW": os.getenv("DB_PW"),
@@ -41,7 +37,6 @@ db_credentials = {
     "DB_NAME": os.getenv("DB_NAME"),
 }
 
-# Configure the SQLAlchemy database URI using credentials
 app.config["SQLALCHEMY_DATABASE_URI"] = build_db_uri(**db_credentials)
 
 db.init_app(app)

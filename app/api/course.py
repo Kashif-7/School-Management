@@ -7,8 +7,9 @@ bp = Blueprint("course", __name__, url_prefix="/courses")
 
 @bp.route("/list", methods=["GET"])
 def get_all_courses():
-    courses = CourseBLC.get_all_courses()
-    return jsonify([{
+    try:
+        courses = CourseBLC.get_all_courses()
+        return jsonify([{
         "id": course.id,
         "name": course.name,
         "description": course.description,
@@ -18,6 +19,8 @@ def get_all_courses():
         "created_at": course.created_at.isoformat() if course.created_at else None,
         "updated_at": course.updated_at.isoformat() if course.updated_at else None
     } for course in courses])
+    except Exception as e:
+        return jsonify({"error": "No courses found"}), 404
 
 
 @bp.route("/detail/<int:id>", methods=["GET"])

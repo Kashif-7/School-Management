@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from app.extension import db
 
 
@@ -9,8 +9,8 @@ class User(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, onupdate=lambda: datetime.now(timezone.utc))
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -27,10 +27,9 @@ class Student(db.Model):
     grade = db.Column(db.Integer, nullable=False)
     address = db.Column(db.String(200))
     phone = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
-    
-    # Relationships
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, onupdate=lambda: datetime.now(timezone.utc))
+  
     enrollments = db.relationship('Enrollment', back_populates='student', cascade='all, delete-orphan')
     
     def __repr__(self):
@@ -47,10 +46,9 @@ class Teacher(db.Model):
     subject = db.Column(db.String(100), nullable=False)
     qualification = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
-    
-    # Relationships
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, onupdate=lambda: datetime.now(timezone.utc))
+
     courses = db.relationship('Course', back_populates='teacher')
     
     def __repr__(self):
@@ -66,10 +64,9 @@ class Course(db.Model):
     credits = db.Column(db.Integer, nullable=False)
     max_students = db.Column(db.Integer, default=30)
     teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
-    
-    # Relationships
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, onupdate=lambda: datetime.now(timezone.utc))
+
     teacher = db.relationship('Teacher', back_populates='courses')
     enrollments = db.relationship('Enrollment', back_populates='course', cascade='all, delete-orphan')
     
@@ -86,10 +83,9 @@ class Enrollment(db.Model):
     enrollment_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), default='active')  # active, completed, dropped
     grade = db.Column(db.Float)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
-    
-    # Relationships
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, onupdate=lambda: datetime.now(timezone.utc))
+
     student = db.relationship('Student', back_populates='enrollments')
     course = db.relationship('Course', back_populates='enrollments')
     

@@ -1,6 +1,4 @@
 from marshmallow import Schema, fields, validates, ValidationError
-from datetime import datetime
-
 class CourseCreateSchema(Schema):
     name = fields.Str(required=True, validate=fields.Length(min=2, max=100))
     description = fields.Str(required=True)
@@ -10,8 +8,8 @@ class CourseCreateSchema(Schema):
     
     @validates('credits')
     def validate_credits(self, value):
-        if value < 1 or value > 6:
-            raise ValidationError('Credits must be between 1 and 6')
+        if value < 1 or value >= 4:
+            raise ValidationError('Credits must be between 1 and 4')
             
     @validates('max_students')
     def validate_max_students(self, value):
