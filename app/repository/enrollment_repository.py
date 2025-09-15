@@ -43,17 +43,15 @@ class EnrollmentRepository:
     @staticmethod
     def create_enrollment(args: dict):
         try:
-            # Check if student exists
+    
             student = Student.query.get(args.get("student_id"))
             if not student:
                 abort(400, "Student not found")
                 
-            # Check if course exists
             course = Course.query.get(args.get("course_id"))
             if not course:
                 abort(400, "Course not found")
-            
-            # Check if student is already enrolled in this course
+ 
             existing = Enrollment.query.filter_by(
                 student_id=args.get("student_id"),
                 course_id=args.get("course_id")
@@ -62,7 +60,6 @@ class EnrollmentRepository:
             if existing:
                 abort(400, "Student is already enrolled in this course")
             
-            # Check if course has reached maximum enrollment
             if course.max_students:
                 current_enrollments = Enrollment.query.filter_by(
                     course_id=args.get("course_id")
@@ -71,7 +68,6 @@ class EnrollmentRepository:
                 if current_enrollments >= course.max_students:
                     abort(400, "Course has reached maximum enrollment")
             
-            # Create new enrollment
             enrollment = Enrollment(
                 student_id=args.get("student_id"),
                 course_id=args.get("course_id"),
@@ -94,7 +90,6 @@ class EnrollmentRepository:
             if not enrollment:
                 abort(404, "Enrollment not found")
             
-            # Update enrollment attributes
             if "status" in args:
                 enrollment.status = args["status"]
             if "grade" in args:
@@ -118,6 +113,19 @@ class EnrollmentRepository:
             db.session.delete(enrollment)
             db.session.commit()
             return {"deleted": True}
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise e
+
+    @staticmethod
+    def get_enrollment_by_student_and_course(student_id: int, course_id: int):
+        """Get enrollment record for a specific student and course"""
+        try:
+            enrollment = Enrollment.query.filter_by(
+                student_id=student_id, 
+                course_id=course_id
+            ).first()
+            return enrollment
         except SQLAlchemyError as e:
             db.session.rollback()
             raise e
