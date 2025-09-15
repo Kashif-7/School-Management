@@ -9,10 +9,8 @@ env/
 ENV/
 
 # Environment variables
-.env
 
 # IDE files
-.vscode/
 .idea/
 
 # Distribution / packaging
@@ -36,3 +34,5 @@ htmlcov/
 
 # Windows
 Thumbs.db
+config.bat
+node_modules
