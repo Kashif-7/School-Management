@@ -8,10 +8,12 @@ from app.api.student import bp as student_bp
 from app.api.teacher import bp as teacher_bp
 from app.api.course import bp as course_bp
 from app.api.enrollment import bp as enrollment_bp
+from app.api.quiz import bp as quiz_bp
 import datetime
 import json
 import os
 from flask_sqlalchemy import SQLAlchemy
+
 class CustomJSONProvider(JSONProvider):
     def dumps(self, obj, **kwargs):
         return json.dumps(obj, default=self.default, **kwargs)
@@ -41,8 +43,6 @@ app.config["SQLALCHEMY_DATABASE_URI"] = build_db_uri(**db_credentials)
 
 db.init_app(app)
 
-
-
 from app.model import models
 
 app.register_blueprint(root_bp)
@@ -51,7 +51,6 @@ app.register_blueprint(student_bp)
 app.register_blueprint(teacher_bp)
 app.register_blueprint(course_bp)
 app.register_blueprint(enrollment_bp)
-
-
+app.register_blueprint(quiz_bp)
 
 __all__ = ["app"]

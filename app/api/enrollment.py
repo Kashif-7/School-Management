@@ -62,12 +62,16 @@ def get_course_enrollments(course_id):
 @use_args(
     {
         "student_id": fields.Integer(required=True),
-        "course_id": fields.Integer(required=True),
+        "course_id": fields.Integer(required=False),
+        "course_name": fields.String(required=False),
         "enrollment_date": fields.Date(required=False)  # Optional, will default to today
     },
     location="json",
 )
 def create_enrollment(args: dict):
+    if "course_id" not in args and "course_name" not in args:
+        return jsonify({"error": "Either course_id or course_name must be provided"}), 400
+        
     try:
         enrollment = EnrollmentBLC.create_enrollment(args=args)
         return jsonify(enrollment), 201
